@@ -3,7 +3,7 @@
   "package": "com.flux.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "MinecraftMixin"
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
