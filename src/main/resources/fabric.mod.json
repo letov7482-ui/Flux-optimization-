@@ -9,16 +9,10 @@
   ],
   "environment": "client",
   "entrypoints": {
-    "mixins": [
-  "flux.mixins.json"
-  ],
     "client": [
       "com.flux.FluxClient"
     ]
   },
-  "depends": {
-    "fabricloader": ">=0.19.5",
-    "minecraft": "~1.21.11",
-    "fabric-api": "*"
-  }
-}
+  "mixins": [
+    "flux.mixins.json"
+  ],
