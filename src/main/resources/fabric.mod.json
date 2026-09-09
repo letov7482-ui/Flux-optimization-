@@ -9,6 +9,9 @@
   ],
   "environment": "client",
   "entrypoints": {
+    "mixins": [
+  "flux.mixins.json"
+  ],
     "client": [
       "com.flux.FluxClient"
     ]
