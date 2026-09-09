@@ -1,8 +1,10 @@
 package com.flux;
 
 import com.flux.gui.FluxScreen;
+import com.flux.performance.FramePacingEngine;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
@@ -13,8 +15,12 @@ public class FluxClient implements ClientModInitializer {
 
     private static KeyMapping openGuiKey;
 
+    private static final FramePacingEngine FRAME_PACING =
+            new FramePacingEngine();
+
     @Override
     public void onInitializeClient() {
+
         openGuiKey = KeyBindingHelper.registerKeyBinding(
                 new KeyMapping(
                         "key.flux.open_gui",
@@ -23,18 +29,17 @@ public class FluxClient implements ClientModInitializer {
                 )
         );
 
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+
+            if (openGuiKey.consumeClick()) {
+                client.setScreen(new FluxScreen(client.screen));
+            }
+        });
+
         System.out.println("Flux Performance Engine initialized.");
     }
 
-    public static void handleKeyInput() {
-        Minecraft minecraft = Minecraft.getInstance();
-
-        if (openGuiKey.consumeClick()) {
-            minecraft.setScreen(new FluxScreen(minecraft.screen));
-        }
-    }
-
-    public static KeyMapping getOpenGuiKey() {
-        return openGuiKey;
+    public static FramePacingEngine getFramePacing() {
+        return FRAME_PACING;
     }
 }
