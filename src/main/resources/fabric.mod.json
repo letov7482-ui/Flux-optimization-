@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "flux",
+  "version": "${version}",
+  "name": "Flux — Performance Engine",
+  "description": "A modern performance engine for Minecraft focused on frame pacing, stability and intelligent optimization.",
+  "authors": [
+    "Flux Team"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.flux.FluxClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~1.21.11",
+    "fabric-api": "*"
+  }
+}
