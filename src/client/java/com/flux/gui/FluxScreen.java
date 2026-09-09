@@ -1,5 +1,7 @@
 package com.flux.gui;
 
+import com.flux.FluxClient;
+import com.flux.performance.FramePacingEngine;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -22,16 +24,18 @@ public class FluxScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         renderBackground(graphics);
 
+        FramePacingEngine engine = FluxClient.getFramePacing();
+
         int centerX = width / 2;
         int centerY = height / 2;
 
-        // Main panel
         int panelWidth = 720;
         int panelHeight = 420;
 
         int left = centerX - panelWidth / 2;
         int top = centerY - panelHeight / 2;
 
+        // Main panel
         graphics.fill(
                 left,
                 top,
@@ -49,7 +53,7 @@ public class FluxScreen extends Screen {
                 0xFF8B5CF6
         );
 
-        // Logo
+        // Header
         graphics.drawCenteredString(
                 font,
                 Component.literal("F L U X"),
@@ -58,7 +62,6 @@ public class FluxScreen extends Screen {
                 0xFFFFFFFF
         );
 
-        // Subtitle
         graphics.drawCenteredString(
                 font,
                 Component.literal("PERFORMANCE ENGINE"),
@@ -87,13 +90,14 @@ public class FluxScreen extends Screen {
 
         graphics.drawString(
                 font,
-                Component.literal("Keeps frame delivery consistent"),
+                Component.literal(
+                        "Keeps frame delivery consistent"
+                ),
                 left + 32,
                 top + 142,
                 0xFF777B84
         );
 
-        // Status
         graphics.drawString(
                 font,
                 Component.literal("ACTIVE"),
@@ -103,55 +107,133 @@ public class FluxScreen extends Screen {
         );
 
         // Metrics
-        graphics.drawString(
-                font,
-                Component.literal("FPS"),
+        drawMetric(
+                graphics,
+                "FPS",
+                String.valueOf(engine.getCurrentFps()),
                 left + 32,
-                top + 200,
-                0xFF777B84
+                top + 200
         );
 
+        drawMetric(
+                graphics,
+                "FRAME TIME",
+                formatMs(engine.getAverageFrameTimeMs()),
+                left + 170,
+                top + 200
+        );
+
+        drawMetric(
+                graphics,
+                "STABILITY",
+                formatPercent(engine.getStability()),
+                left + 330,
+                top + 200
+        );
+
+        drawMetric(
+                graphics,
+                "SPIKES",
+                String.valueOf(engine.getSpikeCount()),
+                left + 500,
+                top + 200
+        );
+
+        // Status
         graphics.drawString(
                 font,
-                Component.literal("--"),
+                Component.literal("PACER"),
                 left + 32,
-                top + 220,
-                0xFFFFFFFF
+                top + 280,
+                0xFF777B84
         );
+
+        String status;
+
+        if (engine.getSampleCount() < 10) {
+            status = "CALIBRATING";
+        } else if (engine.hasRecentSpike()) {
+            status = "FRAME SPIKE DETECTED";
+        } else {
+            status = "STABLE";
+        }
 
         graphics.drawString(
                 font,
-                Component.literal("FRAME TIME"),
-                left + 150,
-                top + 200,
+                Component.literal(status),
+                left + 32,
+                top + 300,
+                0xFFE5E7EB
+        );
+
+        // Sample information
+        graphics.drawString(
+                font,
+                Component.literal("SAMPLES"),
+                left + 32,
+                top + 345,
                 0xFF777B84
         );
 
         graphics.drawString(
                 font,
-                Component.literal("-- ms"),
-                left + 150,
-                top + 220,
-                0xFFFFFFFF
-        );
-
-        graphics.drawString(
-                font,
-                Component.literal("STABILITY"),
-                left + 300,
-                top + 200,
-                0xFF777B84
-        );
-
-        graphics.drawString(
-                font,
-                Component.literal("--%"),
-                left + 300,
-                top + 220,
+                Component.literal(
+                        engine.getSampleCount() + " / 120"
+                ),
+                left + 32,
+                top + 365,
                 0xFFFFFFFF
         );
 
         super.render(graphics, mouseX, mouseY, delta);
+    }
+
+    private void drawMetric(
+            GuiGraphics graphics,
+            String label,
+            String value,
+            int x,
+            int y
+    ) {
+        graphics.drawString(
+                font,
+                Component.literal(label),
+                x,
+                y,
+                0xFF777B84
+        );
+
+        graphics.drawString(
+                font,
+                Component.literal(value),
+                x,
+                y + 20,
+                0xFFFFFFFF
+        );
+    }
+
+    private String formatMs(double value) {
+        if (value <= 0.0) {
+            return "-- ms";
+        }
+
+        return String.format(
+                java.util.Locale.ROOT,
+                "%.2f ms",
+                value
+        );
+    }
+
+    private String formatPercent(double value) {
+        if (value <= 0.0) {
+            return "--%";
+        }
+
+        return String.format(
+                java.util.Locale.ROOT,
+                "%.0f%%",
+                value
+        );
     }
 
     @Override
