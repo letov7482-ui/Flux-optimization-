@@ -1,7 +1,5 @@
 package com.flux.performance;
 
-import net.minecraft.client.Minecraft;
-
 public final class FramePacingEngine {
 
     private static final int SAMPLE_COUNT = 120;
@@ -15,6 +13,9 @@ public final class FramePacingEngine {
 
     private double averageFrameTime;
     private double stability;
+
+    private int spikeCount;
+    private long lastSpikeTime;
 
     public void beginFrame() {
         long now = System.nanoTime();
@@ -64,24 +65,35 @@ public final class FramePacingEngine {
 
         double standardDeviation = Math.sqrt(variance);
 
-        /*
-         * Lower frame-time deviation means better frame pacing.
-         *
-         * This is intentionally a normalized metric rather than
-         * pretending to be a perfect benchmark score.
-         */
         stability = 100.0 - Math.min(
                 100.0,
                 (standardDeviation / Math.max(averageFrameTime, 0.1)) * 100.0
         );
+
+        detectSpike(frameTimes[sampleIndex == 0
+                ? SAMPLE_COUNT - 1
+                : sampleIndex - 1]);
     }
 
-    public double getAverageFrameTimeMs() {
-        return averageFrameTime / 1_000_000.0;
-    }
+    private void detectSpike(long frameTime) {
+        if (sampleCount < 10 || averageFrameTime <= 0.0) {
+            return;
+        }
 
-    public double getStability() {
-        return stability;
+        /*
+         * A frame is considered a spike when it takes
+         * considerably longer than the current average.
+         *
+         * We deliberately use a conservative threshold:
+         * Flux should detect noticeable stutters, not
+         * treat every tiny variation as a problem.
+         */
+        double threshold = averageFrameTime * 1.75;
+
+        if (frameTime > threshold) {
+            spikeCount++;
+            lastSpikeTime = System.nanoTime();
+        }
     }
 
     public int getCurrentFps() {
@@ -94,12 +106,41 @@ public final class FramePacingEngine {
         );
     }
 
+    public double getAverageFrameTimeMs() {
+        return averageFrameTime / 1_000_000.0;
+    }
+
+    public double getStability() {
+        return stability;
+    }
+
+    public int getSpikeCount() {
+        return spikeCount;
+    }
+
+    public boolean hasRecentSpike() {
+        if (lastSpikeTime == 0L) {
+            return false;
+        }
+
+        return System.nanoTime() - lastSpikeTime < 500_000_000L;
+    }
+
+    public int getSampleCount() {
+        return sampleCount;
+    }
+
     public void reset() {
         sampleIndex = 0;
         sampleCount = 0;
+
         lastFrameTime = 0L;
+
         averageFrameTime = 0.0;
         stability = 0.0;
+
+        spikeCount = 0;
+        lastSpikeTime = 0L;
 
         for (int i = 0; i < frameTimes.length; i++) {
             frameTimes[i] = 0L;
