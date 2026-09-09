@@ -6,7 +6,14 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.Locale;
+
 public class FluxScreen extends Screen {
+
+    private static final int ACCENT = 0xFF8B5CF6;
+    private static final int TEXT = 0xFFFFFFFF;
+    private static final int MUTED = 0xFF777B84;
+    private static final int PANEL = 0xF20D0F12;
 
     private final Screen parent;
 
@@ -16,12 +23,12 @@ public class FluxScreen extends Screen {
     }
 
     @Override
-    protected void init() {
-        super.init();
-    }
-
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+    public void render(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY,
+            float delta
+    ) {
         renderBackground(graphics);
 
         FramePacingEngine engine = FluxClient.getFramePacing();
@@ -41,16 +48,16 @@ public class FluxScreen extends Screen {
                 top,
                 left + panelWidth,
                 top + panelHeight,
-                0xF20D0F12
+                PANEL
         );
 
-        // Accent line
+        // Accent
         graphics.fill(
                 left,
                 top,
                 left + 3,
                 top + panelHeight,
-                0xFF8B5CF6
+                ACCENT
         );
 
         // Header
@@ -59,7 +66,7 @@ public class FluxScreen extends Screen {
                 Component.literal("F L U X"),
                 centerX,
                 top + 28,
-                0xFFFFFFFF
+                TEXT
         );
 
         graphics.drawCenteredString(
@@ -73,37 +80,20 @@ public class FluxScreen extends Screen {
         // Section
         graphics.drawString(
                 font,
-                Component.literal("PERFORMANCE"),
+                Component.literal("FRAME PACING"),
                 left + 32,
-                top + 90,
-                0xFFFFFFFF
-        );
-
-        // Frame Pacing
-        graphics.drawString(
-                font,
-                Component.literal("Frame Pacing"),
-                left + 32,
-                top + 125,
-                0xFFE5E7EB
+                top + 88,
+                TEXT
         );
 
         graphics.drawString(
                 font,
                 Component.literal(
-                        "Keeps frame delivery consistent"
+                        "Real-time frame delivery analysis"
                 ),
                 left + 32,
-                top + 142,
-                0xFF777B84
-        );
-
-        graphics.drawString(
-                font,
-                Component.literal("ACTIVE"),
-                left + panelWidth - 85,
-                top + 125,
-                0xFF8B5CF6
+                top + 108,
+                MUTED
         );
 
         // Metrics
@@ -112,42 +102,44 @@ public class FluxScreen extends Screen {
                 "FPS",
                 String.valueOf(engine.getCurrentFps()),
                 left + 32,
-                top + 200
+                top + 145
         );
 
         drawMetric(
                 graphics,
                 "FRAME TIME",
                 formatMs(engine.getAverageFrameTimeMs()),
-                left + 170,
-                top + 200
+                left + 155,
+                top + 145
         );
 
         drawMetric(
                 graphics,
                 "STABILITY",
                 formatPercent(engine.getStability()),
-                left + 330,
-                top + 200
+                left + 310,
+                top + 145
         );
 
         drawMetric(
                 graphics,
                 "SPIKES",
                 String.valueOf(engine.getSpikeCount()),
-                left + 500,
-                top + 200
+                left + 455,
+                top + 145
         );
 
-        // Status
-        graphics.drawString(
-                font,
-                Component.literal("PACER"),
+        // Graph
+        drawGraph(
+                graphics,
+                engine,
                 left + 32,
-                top + 280,
-                0xFF777B84
+                top + 205,
+                panelWidth - 64,
+                145
         );
 
+        // Bottom status
         String status;
 
         if (engine.getSampleCount() < 10) {
@@ -162,27 +154,20 @@ public class FluxScreen extends Screen {
                 font,
                 Component.literal(status),
                 left + 32,
-                top + 300,
-                0xFFE5E7EB
-        );
-
-        // Sample information
-        graphics.drawString(
-                font,
-                Component.literal("SAMPLES"),
-                left + 32,
-                top + 345,
-                0xFF777B84
+                top + 370,
+                engine.hasRecentSpike()
+                        ? 0xFFFFB4B4
+                        : ACCENT
         );
 
         graphics.drawString(
                 font,
                 Component.literal(
-                        engine.getSampleCount() + " / 120"
+                        engine.getSampleCount() + " / 120 samples"
                 ),
-                left + 32,
-                top + 365,
-                0xFFFFFFFF
+                left + panelWidth - 145,
+                top + 370,
+                MUTED
         );
 
         super.render(graphics, mouseX, mouseY, delta);
@@ -200,7 +185,7 @@ public class FluxScreen extends Screen {
                 Component.literal(label),
                 x,
                 y,
-                0xFF777B84
+                MUTED
         );
 
         graphics.drawString(
@@ -208,8 +193,175 @@ public class FluxScreen extends Screen {
                 Component.literal(value),
                 x,
                 y + 20,
-                0xFFFFFFFF
+                TEXT
         );
+    }
+
+    private void drawGraph(
+            GuiGraphics graphics,
+            FramePacingEngine engine,
+            int x,
+            int y,
+            int graphWidth,
+            int graphHeight
+    ) {
+        // Graph background
+        graphics.fill(
+                x,
+                y,
+                x + graphWidth,
+                y + graphHeight,
+                0xAA08090C
+        );
+
+        // Grid
+        int quarter = graphHeight / 4;
+
+        for (int i = 1; i < 4; i++) {
+            int lineY = y + quarter * i;
+
+            graphics.fill(
+                    x,
+                    lineY,
+                    x + graphWidth,
+                    lineY + 1,
+                    0x332F333A
+            );
+        }
+
+        long[] samples = engine.getFrameTimes();
+
+        if (samples.length < 2) {
+            graphics.drawString(
+                    font,
+                    Component.literal("Collecting frame data..."),
+                    x + 12,
+                    y + graphHeight / 2 - 4,
+                    MUTED
+            );
+
+            return;
+        }
+
+        double maxMs = 0.0;
+
+        for (long sample : samples) {
+            double ms = sample / 1_000_000.0;
+
+            if (ms > maxMs) {
+                maxMs = ms;
+            }
+        }
+
+        // Keep the graph readable.
+        maxMs = Math.max(maxMs, 16.0);
+
+        // Prevent one huge spike from destroying the graph scale.
+        maxMs = Math.min(maxMs, 100.0);
+
+        for (int i = 1; i < samples.length; i++) {
+            double previousMs =
+                    samples[i - 1] / 1_000_000.0;
+
+            double currentMs =
+                    samples[i] / 1_000_000.0;
+
+            previousMs = Math.min(previousMs, maxMs);
+            currentMs = Math.min(currentMs, maxMs);
+
+            int previousX =
+                    x + (int) ((i - 1) *
+                            (graphWidth - 1.0) /
+                            (samples.length - 1));
+
+            int currentX =
+                    x + (int) (i *
+                            (graphWidth - 1.0) /
+                            (samples.length - 1));
+
+            int previousY =
+                    y + graphHeight -
+                            (int) ((previousMs / maxMs) *
+                                    (graphHeight - 1));
+
+            int currentY =
+                    y + graphHeight -
+                            (int) ((currentMs / maxMs) *
+                                    (graphHeight - 1));
+
+            drawLine(
+                    graphics,
+                    previousX,
+                    previousY,
+                    currentX,
+                    currentY,
+                    ACCENT
+            );
+        }
+
+        // Scale labels
+        graphics.drawString(
+                font,
+                Component.literal(
+                        String.format(
+                                Locale.ROOT,
+                                "%.0f ms",
+                                maxMs
+                        )
+                ),
+                x + 6,
+                y + 5,
+                MUTED
+        );
+
+        graphics.drawString(
+                font,
+                Component.literal("0 ms"),
+                x + 6,
+                y + graphHeight - 12,
+                MUTED
+        );
+    }
+
+    private void drawLine(
+            GuiGraphics graphics,
+            int x1,
+            int y1,
+            int x2,
+            int y2,
+            int color
+    ) {
+        int dx = x2 - x1;
+        int dy = y2 - y1;
+
+        int steps = Math.max(
+                Math.abs(dx),
+                Math.abs(dy)
+        );
+
+        if (steps == 0) {
+            graphics.fill(
+                    x1,
+                    y1,
+                    x1 + 1,
+                    y1 + 1,
+                    color
+            );
+            return;
+        }
+
+        for (int i = 0; i <= steps; i++) {
+            int x = x1 + dx * i / steps;
+            int y = y1 + dy * i / steps;
+
+            graphics.fill(
+                    x,
+                    y,
+                    x + 2,
+                    y + 2,
+                    color
+            );
+        }
     }
 
     private String formatMs(double value) {
@@ -218,7 +370,7 @@ public class FluxScreen extends Screen {
         }
 
         return String.format(
-                java.util.Locale.ROOT,
+                Locale.ROOT,
                 "%.2f ms",
                 value
         );
@@ -230,7 +382,7 @@ public class FluxScreen extends Screen {
         }
 
         return String.format(
-                java.util.Locale.ROOT,
+                Locale.ROOT,
                 "%.0f%%",
                 value
         );
