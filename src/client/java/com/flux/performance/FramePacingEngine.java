@@ -135,6 +135,20 @@ public final class FramePacingEngine {
         return sampleCount;
     }
 
+    public long[] getFrameTimes() {
+        long[] result = new long[sampleCount];
+
+        for (int i = 0; i < sampleCount; i++) {
+            int index = sampleCount < SAMPLE_COUNT
+                    ? i
+                    : (sampleIndex + i) % SAMPLE_COUNT;
+
+            result[i] = frameTimes[index];
+        }
+
+        return result;
+    }
+
     public void reset() {
         sampleIndex = 0;
         sampleCount = 0;
